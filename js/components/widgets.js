@@ -34,7 +34,30 @@ function nextTrip(trips, fav) {
 }
 export function favoritesStrip(view) {
   view.load('favs', () => api.get('/api/student/favorites'));
+  Object.assign(view.state, { off: {}, serverId: {} });
   return {
+    actions: {
+      'toggle-fav': async (el) => {
+        const f = (view.state.favs.data?.favorites ?? []).find((x) => x.id === Number(el.dataset.id));
+        if (!f) return;
+        const off = { ...view.state.off };
+        const sid = view.state.serverId[f.id] ?? f.id;
+        try {
+          if (!off[f.id]) {
+            off[f.id] = true; view.set({ off });
+            await api.del(`/api/student/favorites/${sid}`); toast(t('Removed from favourites'));
+          } else {
+            delete off[f.id]; view.set({ off });
+            const d = await api.post('/api/student/favorites', { route_id: f.route_id, stop_id: f.stop_id });
+            view.state.serverId[f.id] = d.favorite.id; toast(t('Added to favourites'));
+          }
+        } catch (e) {
+          const back = { ...view.state.off };
+          if (off[f.id]) delete back[f.id]; else back[f.id] = true;
+          view.set({ off: back }); toast(e.message, 'error');
+        }
+      },
+    },
     render: () => {
       const st = view.state.favs;
       if ((st.loading && !st.data) || (st.error && !st.data)) return '';
@@ -46,7 +69,7 @@ export function favoritesStrip(view) {
           <div class="grid g3">${list.map((f) => {
             const n = nextTrip(trips, f);
             return html`<article class="card fav-card" data-key="fav-${f.id}">
-              <div class="row between"><b>${icon('star', 16)} ${f.label || f.stop_name}</b><span class="badge navy">${f.route_code}</span></div>
+              <div class="row between"><b class="row" style="gap:6px"><button type="button" class="btn sm ghost star-btn" style="width:28px;min-height:0;padding:0" aria-pressed="${String(!view.state.off[f.id])}" aria-label="${view.state.off[f.id] ? t('Add {stop} to favourites', { stop: f.stop_name }) : t('Remove {stop} from favourites', { stop: f.stop_name })}" data-click="toggle-fav" data-id="${f.id}">${icon('star', 16)}</button>${f.label || f.stop_name}</b><span class="badge navy">${f.route_code}</span></div>
               <div class="small muted">${f.label ? `${f.stop_name} · ` : ''}${f.route_name}</div>
               ${n ? html`<div class="row" style="margin-top:8px"><span class="bus-chip">${n.tr.bus.number}</span>${tripStatusBadge(n.tr)}</div>${etaView(n.stop.eta, { big: false, tripId: n.tr.id, stopId: f.stop_id })}`
                 : html`<p class="small muted" style="margin-top:8px">${t('No bus is operating or due soon on this route.')}</p>`}
@@ -104,6 +127,12 @@ export function favoritesList(view) {
 
 // ------------------------------------------------------------------ "For you" suggestion card (dashboard)
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function scrollTrack(view, dir) {
+  const track = view.$('.sg-track');
+  if (!track) return;
+  const rtl = getComputedStyle(track).direction === 'rtl';
+  track.scrollBy({ left: dir * (rtl ? -1 : 1) * track.clientWidth, behavior: 'smooth' });
+}
 export function suggestionCard(view) {
   view.load('sug', () => api.get('/api/student/suggestions'), { ms: 30000 });
   Object.assign(view.state, { open: {}, ai: {} });
@@ -113,11 +142,18 @@ export function suggestionCard(view) {
       const items = d?.items ?? [];
       if (!d || !d.enabled || items.length === 0) return '';
       return html`<section class="card tint stack-sm" aria-label="${t('For you')}">
-        <h2>${t('For you')}</h2>
+        <div class="row between">
+          <h2>${t('For you')}</h2>
+          ${items.length > 1 ? html`<div class="sg-nav row" style="gap:6px">
+            <button type="button" class="sg-arrow" data-click="prev" aria-label="${t('Previous')}">&#8249;</button>
+            <button type="button" class="sg-arrow" data-click="next" aria-label="${t('Next')}">&#8250;</button>
+          </div>` : ''}
+        </div>
+        <div class="sg-track">
         ${items.map((s) => {
           const tr = s.trip;
           const isOpen = !!view.state.open[s.key];
-          return html`<article class="stack-sm" data-key="sg-${s.key}">
+          return html`<article class="sg" data-key="sg-${s.key}">
             <div class="row between">
               <div>
                 <b>${t('Your usual {time} bus (Bus {n}) leaves in {m} min', { time: fmtTime(tr.scheduled_departure), n: tr.bus.number, m: tr.minutes_until })}</b>
@@ -135,9 +171,12 @@ export function suggestionCard(view) {
             <div><button class="btn sm ghost" data-click="suppress" data-k="${s.key}">${t("Don't suggest this")}</button></div>
           </article>`;
         })}
+        </div>
       </section>`;
     },
     actions: {
+      prev: () => scrollTrack(view, -1),
+      next: () => scrollTrack(view, 1),
       why: (el, ev) => {
         ev.preventDefault();
         const k = el.dataset.k;

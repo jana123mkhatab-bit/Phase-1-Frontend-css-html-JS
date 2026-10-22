@@ -69,6 +69,7 @@ export default function routesPage(view, ctx) {
             <button aria-pressed="${bool(!routeId)}" data-click="filter" data-id="">${t('All')}</button>
             ${d.routes.filter((r) => r.active).map((r) => html`<button aria-pressed="${bool(routeId === r.id)}" data-click="filter" data-id="${r.id}">${r.code}</button>`)}
           </div>
+          <div class="route-track" tabindex="0" role="region" aria-label="${t('Routes & stops')}">
           ${d.routes.filter((r) => (routeId ? r.id === routeId : true)).map((r) => html`<section class="card" aria-label="${r.name}" data-key="rt-${r.id}">
             <div class="card-head"><div><h3>${r.code} · ${r.name}</h3><span class="small muted">${r.area}</span></div>${!r.active ? html`<span class="badge crit">${t('Not running')}</span>` : ''}${user.route_id === r.id ? html`<span class="badge sky">${t('My route')}</span>` : ''}</div>
             <ol class="journey">
@@ -85,6 +86,7 @@ export default function routesPage(view, ctx) {
               })}
             </ol>
           </section>`)}
+          </div>
         </div>
       </div>`)}`;
     },

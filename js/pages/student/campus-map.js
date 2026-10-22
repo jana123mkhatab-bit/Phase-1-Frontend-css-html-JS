@@ -240,10 +240,12 @@ export default function campusMap(view, ctx) {
             <div class="card-head"><h2>${t('Buses at campus now')}</h2><span class="small muted">${t('Updates every few seconds')}</span></div>
             ${view.state.live.loading && !view.state.live.data ? html`<p class="muted">${t('Loading…')}</p>` : ''}
             ${view.state.live.data && !atCampus.length ? html`<p class="muted">${t('No buses are waiting at campus right now.')}</p>` : ''}
+            <div class="campus-list" tabindex="0" role="region" aria-label="${t('Buses at campus now')}">
             ${atCampus.map((tr) => html`<div class="row between" data-key="ac-${tr.id}">
               <div><b class="mono">${t('Bus {n}', { n: tr.bus.number })}</b> <span class="small muted">· ${tr.route.code} ${tr.route.name}</span></div>
               ${tripStatusBadge(tr)}
             </div>`)}
+            </div>
             ${onRoad.length > 0 ? html`<p class="small muted">${t('{n} more on the road.', { n: onRoad.length })} <a href="#/student/track">${t('Track them live')}</a></p>` : ''}
           </div>
 

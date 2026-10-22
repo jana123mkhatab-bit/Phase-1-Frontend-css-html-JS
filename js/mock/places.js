@@ -24,6 +24,22 @@ export function isOpenAt(place, ms) {
   }
   return true;
 }
+/**
+ * Opening hours of a place on the day of `ms`: { open, opensAt, closesAt, closedAllDay }.
+ * Not open yet -> opensAt is set (the student can wait). Already closed for the day -> neither is set. Unknown hours count as open.
+ */
+export function hoursAt(place, ms) {
+  const d = new Date(ms);
+  if (place.closed_days && String(place.closed_days).split(',').includes(dayKey(d))) return { open: false, closedAllDay: true };
+  if (!(place.opens && place.closes)) return { open: true };
+  const day0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const o = minutesOf(place.opens); const c = minutesOf(place.closes);
+  const a = day0 + o * 60000; let b = day0 + c * 60000;
+  if (c <= o) { if (ms < b) return { open: true, closesAt: b }; b += 86400000; } // overnight hours, and "00:00" meaning midnight
+  if (ms < a) return { open: false, opensAt: a, closesAt: b };
+  if (ms >= b) return { open: false };
+  return { open: true, closesAt: b };
+}
 export const hm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 
 export const placeView = (p) => p && ({ id: p.id, name_en: p.name_en, name_ar: p.name_ar, area: p.area, category: p.category, default_stay_min: p.default_stay_min, has_coords: p.lat != null && p.lng != null, opens: p.opens, closes: p.closes, closed_days: p.closed_days });

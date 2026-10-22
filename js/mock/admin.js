@@ -275,7 +275,7 @@ export function register(route) {
   });
 
   // ---------------- places ----------------
-  route('GET', '/api/admin/places', () => { A(); return { places: [...S.places].sort((a, b) => a.area.localeCompare(b.area) || a.name_en.localeCompare(b.name_en)) }; });
+  route('GET', '/api/admin/places', () => { A(); return { places: S.places.filter((p) => !p.owner_id).sort((a, b) => a.area.localeCompare(b.area) || a.name_en.localeCompare(b.name_en)) }; });
   route('POST', '/api/admin/places', ({ body }) => { const u = A(); const v = placeBody(body ?? {}); const row = { id: nextId('place'), ...v }; S.places.push(row); audit(u, 'place.create', 'place', row.id, v.name_en); return { __status: 201, place: row }; });
   route('PUT', '/api/admin/places/:id', ({ params, body }) => { const u = A(); const cur = exists(S.places, int(params.id, 'id'), 'Place'); Object.assign(cur, placeBody(body ?? {}, cur)); audit(u, 'place.update', 'place', cur.id, cur.name_en); return { place: cur }; });
   route('DELETE', '/api/admin/places/:id', ({ params }) => { const u = A(); const p = exists(S.places, int(params.id, 'id'), 'Place'); S.places = S.places.filter((x) => x.id !== p.id); audit(u, 'place.delete', 'place', p.id, p.name_en); return { ok: true }; });
@@ -334,7 +334,7 @@ export function register(route) {
     const clean = ids.map((x) => int(x, 'stop id'));
     if (new Set(clean).size !== clean.length) throw bad('A collection point can appear only once on a route');
     for (const sid of clean) { const s = exists(S.stops, sid, 'Collection point'); if (s.is_campus) throw bad('The university campus is added automatically at both ends of every trip'); }
-    if (liveBoard(now).some((t) => t.status === 'departed' && t.route.id === id)) throw conflict('A trip on this route is in progress. Change the stops after it finishes');
+    if (liveBoard(now).some((t) => t.status === 'departed' && t.source !== 'demo' && t.route.id === id)) throw conflict('A trip on this route is in progress. Change the stops after it finishes');
     S.routeStops[id] = clean;
     for (const us of S.users) if (us.route_id === id && us.stop_id != null && !clean.includes(us.stop_id)) us.stop_id = null;
     audit(u, 'route.stops', 'route', id, clean.join(','));
@@ -350,7 +350,7 @@ export function register(route) {
   route('PUT', '/api/admin/stops/:id', ({ params, body, now }) => {
     const u = A(); const id = int(params.id, 'id'); const cur = exists(S.stops, id, 'Collection point'); const v = stopBody(body ?? {}, cur);
     const used = Object.entries(S.routeStops).filter(([, ids]) => ids.includes(id)).map(([rid]) => Number(rid));
-    if (liveBoard(now).some((t) => t.status === 'departed' && used.includes(t.route.id))) throw conflict('A trip using this collection point is in progress');
+    if (liveBoard(now).some((t) => t.status === 'departed' && t.source !== 'demo' && used.includes(t.route.id))) throw conflict('A trip using this collection point is in progress');
     Object.assign(cur, { ...v, active: cur.is_campus ? 1 : v.active }); audit(u, 'stop.update', 'stop', id, v.name);
     return { stop: cur };
   });

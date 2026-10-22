@@ -14,7 +14,7 @@ export default function track(view, ctx) {
   const user0 = getUser('student');
   view.load('live', () => api.get('/api/student/live'), { ms: 4000 });
   view.load('cat', () => api.get('/api/student/catalog'));
-  Object.assign(view.state, { stopId: user0.stop_id, wanted: Number(ctx.query.trip) || 0 });
+  Object.assign(view.state, { q: '', stopId: user0.stop_id, wanted: Number(ctx.query.trip) || 0 });
   let lastTripId = null;
 
   const pick = () => {
@@ -33,9 +33,19 @@ export default function track(view, ctx) {
         ${asyncBlock(lv, 'live', () => '')}
         ${lv.data && trips.length === 0 ? empty(t('No buses to track right now'), t('When a bus is scheduled soon, preparing or on the road it will appear here.')) : ''}
         ${trips.length > 0 && trip ? html`
-          <div class="seg" role="group" aria-label="${t('Choose a bus')}">
-            ${trips.map((x) => html`<button aria-pressed="${String(x.id === trip.id)}" data-click="pick-trip" data-id="${x.id}">${t('Bus {n}', { n: x.bus.number })} · ${x.route.code}${x.route.id === user.route_id ? ' ★' : ''}</button>`)}
-          </div>
+          ${(() => {
+            const needle = (view.state.q || '').trim().toLowerCase();
+            const found = trips.filter((x) => !needle || [x.bus.number, x.route.code, x.route.name, fmtTime(x.expected_departure)].some((v) => String(v ?? '').toLowerCase().includes(needle)));
+            return html`<div class="card stack-sm" role="search">
+              <input class="input" type="search" autocomplete="off" placeholder="${t('Search by bus number or route…')}" aria-label="${t('Choose a bus')}" value="${view.state.q}" data-bind="q">
+              ${needle ? '' : html`<p class="small muted" style="margin:0">${t('Showing')} <b class="mono">${t('Bus {n}', { n: trip.bus.number })}</b> · ${trip.route.code} ${trip.route.name}</p>`}
+              <div class="bus-results" role="listbox" aria-label="${t('Choose a bus')}" ${needle ? '' : 'hidden'}>
+                ${found.length === 0 ? html`<p class="small muted" style="padding:10px 12px;margin:0">${t('No buses match your search.')}</p>` : found.map((x) => html`<button type="button" role="option" class="bus-result" aria-selected="${String(x.id === trip.id)}" data-click="pick-trip" data-id="${x.id}">
+                  <b class="mono">${t('Bus {n}', { n: x.bus.number })}</b><span class="muted small">· ${x.route.code} ${x.route.name}${x.route.id === user.route_id ? ' ★' : ''}</span><span class="small muted" style="margin-inline-start:auto">${fmtTime(x.expected_departure)}</span>
+                </button>`)}
+              </div>
+            </div>`;
+          })()}
           <div class="split">
             <div class="stack">
               ${cat.data ? transitMap({ campus: cat.data.campus, routes: cat.data.routes, trips: [trip], selectedTripId: trip.id, highlightStopId: stopId, routeFilter: trip.route.id, onSelectStop: true }) : ''}
@@ -85,7 +95,7 @@ export default function track(view, ctx) {
       }
     },
     actions: {
-      'pick-trip': (el) => { view.set({ wanted: Number(el.dataset.id) }); setQuery({ trip: el.dataset.id }); },
+      'pick-trip': (el) => { view.set({ wanted: Number(el.dataset.id), q: '' }); setQuery({ trip: el.dataset.id }); },
       stop: (el) => view.set({ stopId: Number(el.value) || null }),
       'map-stop': (el) => {
         const { trip } = pick();

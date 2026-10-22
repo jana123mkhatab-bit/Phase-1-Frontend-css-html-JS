@@ -128,10 +128,11 @@ export default function reservations(view, ctx) {
                 </div>
               </div>` : html`<div class="card-head"><div><h2>${t('All reservations on {date}', { date })}</h2><span class="small muted">${t('Select a trip on the left to see only its students.')}</span></div></div>`}
 
+            ${trip && trip.seats.unlisted > 0 ? html`<p class="small muted" role="note">${t('{n} of the reserved seats are estimated demand from students not booked through this system, so they have no name to list. Only the {m} booked seats appear below.', { n: trip.seats.unlisted, m: trip.seats.listed })}</p>` : ''}
             <label class="check small"><input type="checkbox" data-bind="showCancelled" ${showCancelled ? 'checked' : ''}>${t('Show cancelled reservations')}</label>
 
             ${asyncBlock(view.state.list, 'list', () => (rows.length === 0
-              ? empty(q ? t('No student matches') : trip ? t('No students on this trip yet') : t('No reservations on this date'), html`<p>${q ? t('Try a different name or student number.') : trip ? t('Reserved seats will list the student here.') : t('Students’ reservations will appear here.')}</p>`)
+              ? empty(q ? t('No student matches') : trip ? (trip.seats.unlisted > 0 ? t('No named reservations on this trip') : t('No students on this trip yet')) : t('No reservations on this date'), html`<p>${q ? t('Try a different name or student number.') : trip ? (trip.seats.unlisted > 0 ? t('Seats are held by estimated demand; individual bookings will be listed here.') : t('Reserved seats will list the student here.')) : t('Students’ reservations will appear here.')}</p>`)
               : html`<div class="table-wrap"><table class="t res-table"><thead><tr><th>${t('Student')}</th>${!trip ? html`<th>${t('Trip')}</th>` : ''}<th>${t('Boarding at')}</th><th>${t('Type')}</th><th>${t('Status')}</th><th></th></tr></thead><tbody>
                 ${rows.map((r) => html`<tr data-key="rv-${r.id}" class="${r.status === 'cancelled' ? 'dim' : ''}">
                   <td><b>${r.student_name}</b><div class="small muted">${r.student_no ? `#${r.student_no} · ` : ''}${r.student_email}</div></td>

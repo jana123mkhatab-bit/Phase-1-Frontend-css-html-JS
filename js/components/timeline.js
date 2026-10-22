@@ -8,6 +8,7 @@ const MODE = { walk: 'Walk', bus: 'Bus', taxi: 'Taxi', transit: 'Public transpor
 const modeLabel = (m) => t(MODE[m] ?? 'Unknown');
 const fmtRange = (r) => (!r?.[0] ? '—' : r[1] ? `${fmtTime(r[0])} – ${fmtTime(r[1])}` : `${fmtTime(r[0])} –`);
 const mins = (a, b) => (a === b ? t('{n} min', { n: a }) : t('{a}–{b} min', { a, b }));
+const money = (c) => (c[1] === 0 ? t('Free') : c[0] === c[1] ? t('{a} EGP', { a: c[0] }) : t('{a}–{b} EGP', { a: c[0], b: c[1] }));
 const ic = (m) => icon(m === 'walk' ? 'walk' : m, 14);
 
 /** A horizontal range bar: where this step falls inside the whole plan. Decorative; the text beside it says the same. */
@@ -16,6 +17,18 @@ function rangeBar(from, to, total) {
   const left = Math.max(0, ((new Date(from[0]) - total[0]) / (total[1] - total[0])) * 100);
   const right = Math.min(100, ((new Date(to[1] ?? to[0]) - total[0]) / (total[1] - total[0])) * 100);
   return html`<span class="tl-bar" aria-hidden="true"><i style="inset-inline-start:${left}%;width:${Math.max(2, right - left)}%"></i></span>`;
+}
+
+/** University buses that pass near an outside stop. */
+function campusBuses(stop) {
+  const list = stop.campus_buses;
+  if (stop.place.area === 'campus') return '';
+  return html`<div class="tl-buses stack-sm">
+    <b class="small">${icon('bus', 14)} ${t('University buses you can take here')}</b>
+    ${list?.length ? html`<ul>${list.map((x) => html`<li><a class="bus-link" href="#/student/track?trip=${x.trip_id}" title="${t('Track this bus')}"><b class="mono">${t('Bus {n}', { n: x.bus_number })}</b> · ${x.route_code} ${x.route_name} <span class="badge ${x.direction === 'to_campus' ? 'sky' : ''}">${x.direction === 'to_campus' ? t('To university') : t('From university')}</span>
+      <span class="small muted">${t('{time} at {stop} ({n} min walk)', { time: fmtTime(x.at), stop: x.stop_name, n: x.walk_min })} · ${t(x.label)}</span> <span class="small">${t('Track')} →</span></a></li>`)}</ul>`
+      : html`<p class="small muted" style="margin:0">${t('No university bus passes close to this place today.')}</p>`}
+  </div>`;
 }
 
 function backups(stop, open) {
@@ -47,26 +60,40 @@ export function timeline(plan, openBackups = new Set()) {
         <span class="tl-ico">${icon(leg.mode === 'walk' ? 'walk' : leg.mode ?? 'alert', 18)}</span>
         <div class="tl-body">
           ${leg.estimable === false ? html`<b>${t('Cannot estimate the way to {name}', { name: pn(leg.to) })}</b>` : html`
-            <div class="row" style="gap:8px"><b>${modeLabel(leg.mode)}</b><span>${mins(leg.minutes_min, leg.minutes_max)}</span>
-              <span class="badge">${t(leg.basis)}</span>
-              ${leg.cost ? html`<span class="badge navy">${t('{a}–{b} EGP', { a: leg.cost[0], b: leg.cost[1] })}</span>` : ''}</div>
-            <div class="small muted">${t('Leave {a}, arrive {b}', { a: fmtRange(leg.start_range), b: fmtRange(leg.end_range) })}</div>
+            <div class="tl-leg-head"><b>${modeLabel(leg.mode)}</b><span class="tl-dur">${mins(leg.minutes_min, leg.minutes_max)}</span>
+              ${leg.cost ? html`<span class="badge ${leg.cost[1] === 0 ? 'live' : 'navy'}">${money(leg.cost)}</span>` : ''}</div>
+            <div class="small muted">${t('Leave {a}, arrive {b}', { a: fmtRange(leg.start_range), b: fmtRange(leg.end_range) })} · ${t(leg.basis)}</div>
             ${rangeBar(leg.start_range, leg.end_range, total)}
-            ${leg.options.length > 1 ? html`<div class="seg" role="group" aria-label="${t('Way to get to {name}', { name: pn(leg.to) })}">
+            ${leg.options.length > 1 ? html`<div class="seg tl-modes" role="group" aria-label="${t('Way to get to {name}', { name: pn(leg.to) })}">
               ${leg.options.map((o) => html`<button type="button" aria-pressed="${String(o.mode === leg.mode)}" data-click="set-mode" data-i="${i}" data-mode="${o.mode}">
-                ${ic(o.mode)} ${modeLabel(o.mode)} · ${mins(o.minutes_min, o.minutes_max)}${o.cost ? ` · ${t('{a}–{b} EGP', { a: o.cost[0], b: o.cost[1] })}` : ''}
+                ${ic(o.mode)} ${modeLabel(o.mode)} · ${mins(o.minutes_min, o.minutes_max)}${o.cost && o.cost[1] > 0 ? ` · ${money(o.cost)}` : ''}
               </button>`)}
             </div>` : ''}`}
         </div>
       </li>` });
-    if (stop?.estimable !== false && stop) {
+    if (stop?.is_return && stop.estimable !== false) {
+      items.push({ at: new Date(stop.arrive_range[0]).getTime() + 1, key: `s${i}`, node: html`
+        <li class="tl-stop tl-return">
+          <span class="tl-ico solid">${icon('flag', 18)}</span>
+          <div class="tl-body">
+            <div class="tl-stop-head"><b>${t('Back at {name}', { name: pn(stop.place.id === 'campus' ? { name_en: 'campus', name_ar: 'الجامعة' } : stop.place) })}</b></div>
+            <dl class="tl-times tl-times-1"><div><dt>${t('Arrive')}</dt><dd>${fmtRange(stop.arrive_range)}</dd></div></dl>
+          </div>
+        </li>` });
+    } else if (stop?.estimable !== false && stop) {
       items.push({ at: new Date(stop.arrive_range[0]).getTime() + 1, key: `s${i}`, node: html`
         <li class="tl-stop">
           <span class="tl-ico solid">${icon('pin', 18)}</span>
           <div class="tl-body">
-            <div class="row" style="gap:8px"><b>${pn(stop.place)}</b><span class="badge ${stop.place.area === 'campus' ? 'sky' : 'navy'}">${stop.place.area === 'campus' ? t('On campus') : t('Outside campus')}</span></div>
-            <div class="small">${t('Arrive {a}', { a: fmtRange(stop.arrive_range) })} · ${t('stay {n} min', { n: stop.stay_min })} · ${t('leave {a}', { a: fmtRange(stop.leave_range) })}</div>
+            <div class="tl-stop-head"><b>${i + 1}. ${pn(stop.place)}</b><span class="badge ${stop.place.area === 'campus' ? 'sky' : 'navy'}">${stop.place.area === 'campus' ? t('On campus') : t('Outside campus')}</span></div>
+            <dl class="tl-times">
+              <div><dt>${t('Arrive')}</dt><dd>${fmtRange(stop.arrive_range)}</dd></div>
+              <div><dt>${t('Stay')}</dt><dd>${t('{n} min', { n: stop.stay_min })}</dd></div>
+              <div><dt>${t('Leave')}</dt><dd>${fmtRange(stop.leave_range)}</dd></div>
+            </dl>
+            ${stop.wait_min > 0 ? html`<span class="badge warn">${icon('clock', 14)} ${t('Wait about {n} min until it opens', { n: stop.wait_min })}</span>` : ''}
             ${stop.status !== 'ok' ? html`<span class="badge crit">${stop.status === 'late' ? t('Cannot arrive by {t}', { t: stop.arrive_by }) : t('Arriving by {t} is not certain', { t: stop.arrive_by })}</span>` : ''}
+            ${campusBuses(stop)}
             ${backups(stop, openBackups.has(stop.index))}
           </div>
         </li>` });
@@ -75,11 +102,11 @@ export function timeline(plan, openBackups = new Set()) {
   plan.fixed_blocks.forEach((b) => items.push({ at: new Date(b.start_iso).getTime(), key: `c${b.start}${b.title}`, node: html`
     <li class="tl-class ${b === nextClass ? 'next' : ''}">
       <span class="tl-ico">${icon('lock', 18)}</span>
-      <div class="tl-body"><b>${t('Class')}: ${b.title}</b> ${b === nextClass ? html`<span class="badge warn">${t('Next class')}</span>` : ''}<div class="small">${b.start}–${b.end}${b.location_text ? ` · ${b.location_text}` : ''}</div></div>
+      <div class="tl-body"><b>${t('Class')}: ${b.title}</b> ${b === nextClass ? html`<span class="badge warn">${t('Next class')}</span>` : ''}<div class="small"><span dir="ltr">${b.start}–${b.end}</span>${b.location_text ? ` · ${b.location_text}` : ''}</div></div>
     </li>` }));
   items.sort((a, b) => a.at - b.at);
   return html`<ol class="timeline" aria-label="${t('Your plan, step by step')}">
-    <li class="tl-stop"><span class="tl-ico solid">${icon('home', 18)}</span><div class="tl-body"><b>${t('Start')}: ${pn(plan.origin)}</b><div class="small">${fmtTime(plan.start_at)}</div></div></li>
+    <li class="tl-start"><span class="tl-ico solid">${icon('home', 18)}</span><div class="tl-body"><div class="tl-stop-head"><b>${t('Start')}: ${pn(plan.origin)}</b><span class="small muted">${fmtTime(plan.start_at)}</span></div></div></li>
     ${items.map((x) => x.node)}
   </ol>`;
 }

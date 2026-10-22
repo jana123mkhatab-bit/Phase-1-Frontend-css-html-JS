@@ -3,7 +3,7 @@
 import seed from './seed.js';
 import { MIN, iso, ymd, dayKey, dateOfDayNo, dayNo } from './util.js';
 
-const KEY = 'campus-phase1-state-v1';
+const KEY = 'campus-phase1-state-v2';
 export let S = null;
 
 const OFF_CAMPUS = [
@@ -12,15 +12,47 @@ const OFF_CAMPUS = [
   { name_en: 'Print & Copy Hub', name_ar: 'سنتر الطباعة والتصوير', category: 'printing', lat: 30.0228, lng: 31.4252, opens: '08:30', closes: '20:00', closed_days: 'fri', default_stay_min: 10 },
   { name_en: 'Heliopolis Food Court', name_ar: 'ساحة المطاعم - مصر الجديدة', category: 'food', lat: 30.0652, lng: 31.4308, opens: '10:00', closes: '23:30', closed_days: null, default_stay_min: 30 },
   { name_en: 'Nasr City Post Office', name_ar: 'مكتب بريد مدينة نصر', category: 'other', lat: 30.0211, lng: 31.4048, opens: '08:00', closes: '14:00', closed_days: 'fri,sat', default_stay_min: 15 },
+  { name_en: 'Banque Misr, New Cairo', name_ar: 'بنك مصر - القاهرة الجديدة', category: 'bank', lat: 30.0425, lng: 31.4318, opens: '08:30', closes: '15:00', closed_days: 'fri,sat', default_stay_min: 20 },
+  { name_en: 'NBE ATM, Mall Corner', name_ar: 'ماكينة البنك الأهلي - ناصية المول', category: 'bank', lat: 30.0358, lng: 31.444, opens: null, closes: null, closed_days: null, default_stay_min: 5 },
+  { name_en: 'Seif Pharmacy, Heliopolis', name_ar: 'صيدلية سيف - مصر الجديدة', category: 'pharmacy', lat: 30.0772, lng: 31.4062, opens: '00:00', closes: '23:59', closed_days: null, default_stay_min: 10 },
+  { name_en: 'Rushdy Pharmacy, Nasr City', name_ar: 'صيدلية رشدي - مدينة نصر', category: 'pharmacy', lat: 30.0195, lng: 31.4062, opens: '09:00', closes: '22:00', closed_days: null, default_stay_min: 10 },
+  { name_en: 'Quick Print Center', name_ar: 'كويك برينت للطباعة', category: 'printing', lat: 30.0295, lng: 31.4608, opens: '09:00', closes: '21:00', closed_days: 'fri', default_stay_min: 15 },
+  { name_en: 'Zaki Stationery & Books', name_ar: 'مكتبة زكي للأدوات المكتبية', category: 'shop', lat: 30.0205, lng: 31.4492, opens: '10:00', closes: '22:00', closed_days: null, default_stay_min: 15 },
+  { name_en: 'City Stars Mall', name_ar: 'سيتي ستارز مول', category: 'shop', lat: 30.0495, lng: 31.4515, opens: '10:00', closes: '23:00', closed_days: null, default_stay_min: 60 },
+  { name_en: 'Nile Clinic, New Cairo', name_ar: 'عيادة النيل - القاهرة الجديدة', category: 'clinic', lat: 30.0432, lng: 31.4295, opens: '10:00', closes: '20:00', closed_days: 'fri', default_stay_min: 40 },
+  { name_en: 'Al Salam Medical Lab', name_ar: 'معمل السلام الطبي', category: 'clinic', lat: 30.0668, lng: 31.4322, opens: '07:00', closes: '18:00', closed_days: 'fri', default_stay_min: 25 },
+  { name_en: 'Coffee Corner, Ring Road', name_ar: 'كوفي كورنر - الطريق الدائري', category: 'food', lat: 30.0286, lng: 31.4585, opens: '08:00', closes: '01:00', closed_days: null, default_stay_min: 30 },
+  { name_en: 'Koshary Abou Tarek (Nasr City)', name_ar: 'كشري أبو طارق - مدينة نصر', category: 'food', lat: 30.0225, lng: 31.4235, opens: '10:00', closes: '00:00', closed_days: null, default_stay_min: 25 },
+  { name_en: 'Al Rahma Mosque', name_ar: 'مسجد الرحمة', category: 'worship', lat: 30.0362, lng: 31.4465, opens: null, closes: null, closed_days: null, default_stay_min: 20 },
+  { name_en: 'Garden City Park', name_ar: 'حديقة جاردن سيتي', category: 'other', lat: 30.0645, lng: 31.4295, opens: '06:00', closes: '22:00', closed_days: null, default_stay_min: 30 },
 ];
 
+// Every day has a morning class, a gap of about three hours (room for a bank, a pharmacy or lunch off campus) and an afternoon class.
 const CLASSES = [
-  ['sun', 'Data Structures', '09:00', '10:30', 'R Building'], ['sun', 'Databases', '12:00', '13:30', 'N Building'],
-  ['mon', 'Software Engineering', '10:00', '11:30', 'R Building'], ['mon', 'Computer Networks', '13:00', '14:30', 'E Building'],
-  ['tue', 'Data Structures', '09:00', '10:30', 'R Building'], ['tue', 'Operating Systems', '11:00', '12:30', 'S Building'],
-  ['wed', 'Software Engineering', '10:00', '11:30', 'R Building'], ['wed', 'Databases', '12:00', '13:30', 'N Building'],
-  ['thu', 'Operating Systems', '11:00', '12:30', 'S Building'], ['thu', 'Computer Networks', '14:00', '15:30', 'E Building'],
+  ['sun', 'Data Structures', '09:00', '10:30', 'R Building'], ['sun', 'Databases', '14:00', '15:30', 'N Building'],
+  ['mon', 'Software Engineering', '10:00', '11:30', 'R Building'], ['mon', 'Computer Networks', '14:30', '16:00', 'E Building'],
+  ['tue', 'Data Structures', '09:00', '10:30', 'R Building'], ['tue', 'Operating Systems', '13:30', '15:00', 'S Building'],
+  ['wed', 'Software Engineering', '10:00', '11:30', 'R Building'], ['wed', 'Databases', '14:00', '15:30', 'N Building'],
+  ['thu', 'Operating Systems', '10:00', '11:30', 'S Building'], ['thu', 'Computer Networks', '15:00', '16:30', 'E Building'],
 ];
+
+// Extra midday runs so a student can go out and come back by university bus (the base timetable is mostly morning in, afternoon out).
+// [direction, depart_time, first bus, second bus] - two-bus routes alternate, a one-bus route uses its only bus.
+const MIDDAY_RUNS = [
+  ['from_campus', '10:45', 0], ['to_campus', '11:30', 0], ['from_campus', '12:00', 1], ['to_campus', '12:45', 1], ['from_campus', '13:00', 0],
+  ['to_campus', '14:00', 0], ['from_campus', '14:15', 1], ['to_campus', '15:30', 1], ['from_campus', '16:00', 0], ['to_campus', '17:15', 0],
+];
+function middaySchedules(base) {
+  const out = []; let id = base.reduce((m, x) => Math.max(m, x.id), 0);
+  for (const route of [1, 2, 3]) {
+    const buses = [...new Set(base.filter((x) => x.route_id === route).map((x) => x.bus_id))];
+    for (const [direction, depart_time, which] of MIDDAY_RUNS) {
+      const ref = base.find((x) => x.route_id === route && x.bus_id === (buses[which] ?? buses[0]));
+      out.push({ ...ref, id: ++id, depart_time, direction });
+    }
+  }
+  return out;
+}
 
 /** The n most recent service days (sun-thu) strictly before today, as day numbers (newest first). */
 function pastServiceDays(n) {
@@ -43,7 +75,7 @@ function fresh() {
     users: structuredClone(seed.users), stops: structuredClone(seed.stops), buses: structuredClone(seed.buses), drivers: structuredClone(seed.drivers),
     routes: seed.routes.map(({ stops, ...r }) => r),
     routeStops: Object.fromEntries(seed.routes.map((r) => [r.id, r.stops.map((s) => s.id)])),
-    schedules: structuredClone(seed.schedules),
+    schedules: [...structuredClone(seed.schedules), ...middaySchedules(seed.schedules)],
     places: [...structuredClone(seed.places), ...OFF_CAMPUS.map((p, i) => ({ id: 18 + i, area: 'off_campus', walk_min_from_campus_stop: null, active: 1, ...p }))],
     reservations: [], favorites: [], notifications: [], issues: [], updates: [], anomalies: [], audit: [], outbox: [], classes: [], plans: [], suppressed: [],
     tripOv: {}, manualTrips: [], sessions: { student: null, admin: null }, lastNotifyPass: 0,
@@ -104,8 +136,19 @@ function fresh() {
   st.seq.outbox = st.outbox.length;
   st.classes = CLASSES.map(([day, title, start, end, loc], i) => ({ id: i + 1, user_id: 3, title, day, start, end, location_text: loc, source: 'manual' }));
   st.seq.cls = st.classes.length;
+  // Two saved plans for the sample student: the first is on her bus route (free university bus both ways), the second needs a taxi or walk.
+  const pid = (name) => st.places.find((p) => p.name_en.startsWith(name))?.id;
+  st.plans = [
+    ['Bank and clinic in New Cairo', 'Banque Misr', 20, 'Nile Clinic', 40],
+    ['Pharmacy, printing and a coffee', 'Al Ezaby', 10, 'Quick Print', 15, 'Coffee Corner', 30],
+  ].map(([name, ...rest], i) => {
+    const stops = [];
+    for (let j = 0; j < rest.length; j += 2) if (pid(rest[j])) stops.push({ place_id: pid(rest[j]), stay_min: rest[j + 1], arrive_by: null });
+    return { id: i + 1, user_id: 3, created_at: ago(60 * 20), expires_at: iso(now + (6 - i) * 86400000), stops, origin_place_id: 'campus', finish_by: null, name };
+  });
+  st.seq.plan = st.plans.length;
   const max = (a) => a.reduce((m, x) => Math.max(m, x.id), 0);
-  Object.assign(st.seq, { fav: 2, bus: max(st.buses), driver: max(st.drivers), route: max(st.routes), stop: max(st.stops), sched: max(st.schedules), place: max(st.places), user: max(st.users), plan: 0, mtrip: 0 });
+  Object.assign(st.seq, { fav: 2, bus: max(st.buses), driver: max(st.drivers), route: max(st.routes), stop: max(st.stops), sched: max(st.schedules), place: max(st.places), user: max(st.users), plan: st.plans.length, mtrip: 0 });
   return st;
 }
 

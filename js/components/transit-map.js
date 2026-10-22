@@ -8,8 +8,8 @@ import { colorMap } from '../core/format.js';
 
 const PAD = 56;
 
-export function transitMap({ campus, routes = [], trips = [], selectedTripId, highlightStopId, onSelectTrip, onSelectStop, userLoc, routeFilter, height, selectedRouteId, wide, insetRight = 0 }) {
-  const W = wide ? 930 : 760, H = wide ? 600 : 520;
+export function transitMap({ campus, routes = [], trips = [], selectedTripId, highlightStopId, onSelectTrip, onSelectStop, userLoc, routeFilter, height, selectedRouteId, wide, insetRight = 0, size }) {
+  const W = size ? size[0] : wide ? 930 : 760, H = size ? size[1] : wide ? 600 : 520;
   const colorOf = colorMap(routes);
 
   const shown = routes.filter((r) => (routeFilter ? r.id === routeFilter : r.active !== 0)).sort((a, b) => (a.id === selectedRouteId) - (b.id === selectedRouteId));

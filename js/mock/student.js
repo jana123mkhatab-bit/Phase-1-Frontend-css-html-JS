@@ -9,7 +9,7 @@ import {
   publicUser, requireRole, audit, notify, unreadCount, activeUpdates, routeCatalog, students, runNotificationPass,
 } from './common.js';
 import { buildPlan, savePlan, listPlans, classesOn } from './errands.js';
-import { normalise, placeView, isOpenAt, hm } from './places.js';
+import { normalise, placeView, isOpenAt, hm, CATEGORIES, CATEGORY_DEFAULTS } from './places.js';
 
 const MAX_FAVORITES = 10;
 const LEAD_MINUTES = [30, 45, 60, 90];
@@ -23,7 +23,23 @@ const passwordStrength = (pw) => {
   if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) throw bad('Password must contain letters and numbers');
 };
 
-const favRow = (f) => ({ id: f.id, route_id: f.route_id, stop_id: f.stop_id, label: f.label, route_code: routeOf(f.route_id)?.code, route_name: routeOf(f.route_id)?.name, stop_name: stopOf(f.stop_id)?.name });
+/** The closest collection point on a running route (one that has a bus), so every outside place can say which university bus serves it. */
+function nearBusStop(p) {
+  if (p.area === 'campus' || p.lat == null || p.lng == null) return null;
+  const withBus = new Set(S.buses.filter((b) => b.route_id != null).map((b) => b.route_id));
+  let best = null;
+  for (const r of S.routes) {
+    if (!r.active || !withBus.has(r.id)) continue;
+    for (const id of S.routeStops[r.id] ?? []) {
+      const s = stopOf(id); if (!s) continue;
+      const d = haversine({ lat: p.lat, lng: p.lng }, { lat: s.lat, lng: s.lng });
+      if (!best || d < best.d) best = { d, stop: s.name, route_code: r.code, route_name: r.name, buses: S.buses.filter((b) => b.route_id === r.id).map((b) => b.number) };
+    }
+  }
+  return best && { stop_name: best.stop, route_code: best.route_code, route_name: best.route_name, buses: best.buses, distance_m: Math.round(best.d) };
+}
+
+const favRow =(f) => ({ id: f.id, route_id: f.route_id, stop_id: f.stop_id, label: f.label, route_code: routeOf(f.route_id)?.code, route_name: routeOf(f.route_id)?.name, stop_name: stopOf(f.stop_id)?.name });
 
 /** reservation joined with its trip, or null when the trip no longer exists */
 function joined(rs, now) {
@@ -46,6 +62,7 @@ function reserve({ user, tripId, stopId, madeBy = 'student', note = null, overri
   if (S.reservations.some((x) => x.user_id === user.id && x.trip_id === tripId && x.status === 'confirmed')) throw conflict('You already have a seat on this trip', 'duplicate');
   const view = tripView(d, now);
   const outside = user.route_id !== d.route_id ? 1 : 0;
+  if (!outside && !override && madeBy === 'student') throw conflict('You are already registered on this route, so your seat is already covered. Reservations are only for buses outside your route.', 'own_route');
   if (outside && !override && !view.allow_outside) throw forbidden('Seats on this trip are reserved for students assigned to its route');
   if (outside && !override && view.seats.outside_reserved >= view.outside_limit) throw conflict('The seats open to other routes on this trip are taken', 'outside_full');
   if (view.seats.available <= 0) throw conflict('This bus is full', 'full');
@@ -401,12 +418,23 @@ export function register(route) {
 
   // ---------------- errand planner ----------------
   route('GET', '/api/student/places', ({ query }) => {
-    requireRole('student');
+    const me = requireRole('student');
     const area = query.area ? oneOf(query.area, 'area', ['campus', 'off_campus']) : null;
     const q = normalise(query.q ?? '');
-    let rows = S.places.filter((p) => p.active && (!area || p.area === area)).sort((a, b) => a.area.localeCompare(b.area) || a.name_en.localeCompare(b.name_en));
+    let rows = S.places.filter((p) => p.active && (!area || p.area === area) && (!p.owner_id || p.owner_id === me.id)).sort((a, b) => a.area.localeCompare(b.area) || a.name_en.localeCompare(b.name_en));
     if (q) rows = rows.filter((p) => normalise(`${p.name_en} ${p.name_ar} ${p.category}`).includes(q));
-    return { places: rows.slice(0, 100).map(placeView) };
+    return { places: rows.slice(0, 100).map((p) => ({ ...placeView(p), near: nearBusStop(p) })) };
+  });
+  /** A student's own place outside the campus (a shop, a friend's building…). Only that student sees it. */
+  route('POST', '/api/student/places', ({ body: b = {} }) => {
+    const u = requireRole('student');
+    if (S.places.filter((p) => p.owner_id === u.id).length >= 20) throw conflict('You can save up to 20 places of your own');
+    const name = str(b.name, 'Place name', { max: 80 });
+    const category = oneOf(b.category ?? 'other', 'Category', CATEGORIES);
+    const lat = num(b.lat, 'Latitude', { min: -90, max: 90 }); const lng = num(b.lng, 'Longitude', { min: -180, max: 180 });
+    const row = { id: 100000 + nextId('uplace'), owner_id: u.id, name_en: name, name_ar: '', area: 'off_campus', category, lat, lng, walk_min_from_campus_stop: null, default_stay_min: CATEGORY_DEFAULTS[category] ?? 15, opens: null, closes: null, closed_days: null, active: 1 };
+    S.places.push(row);
+    return { __status: 201, place: placeView(row) };
   });
   route('POST', '/api/student/errands/parse', () => { requireRole('student'); throw conflict('AI is not enabled on this server. Add your stops one by one.', 'ai_disabled'); });
   route('POST', '/api/student/errands/plan', ({ body, now }) => buildPlan(requireRole('student'), body ?? {}, now));

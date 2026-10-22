@@ -3,7 +3,7 @@
 import { html, raw, esc, cls } from './dom.js';
 import { mountView } from './view.js';
 import { t, td, getLang } from './i18n.js';
-import { fmtMins, fmtTime, ago, busStatusLabel } from './format.js';
+import { fmtMins, fmtTime, ago, busStatusLabel, updateKindLabel } from './format.js';
 import { api } from './api.js';
 import { icon } from './icons.js';
 
@@ -93,7 +93,7 @@ export function confirmDialog(opts) {
       modal.canClose = () => !view.state.busy;
       return {
         render: () => html`<p>${opts.body}</p>`,
-        footer: () => html`<button class="btn secondary" data-click="no" ${view.state.busy ? 'disabled' : ''}>${t('Keep it')}</button>
+        footer: () => html`${opts.hideCancel ? '' : html`<button class="btn secondary" data-click="no" ${view.state.busy ? 'disabled' : ''}>${t('Keep it')}</button>`}
           <button class="btn ${opts.danger ? 'danger' : ''}" data-click="yes" ${view.state.busy ? 'disabled' : ''}>${view.state.busy ? t('Working…') : t(opts.confirmLabel || 'Confirm')}</button>`,
         actions: {
           no: () => modal.close(),
@@ -215,9 +215,28 @@ export function gpsNote(trip) {
   return html`<span class="small muted">${p.fresh ? t('GPS') : t('GPS silent')} · ${t('updated {when}', { when: ago(p.age_sec) })} · ${p.source === 'demo' ? t('simulated') : t('device')}</span>`;
 }
 
-export function simBanner(mode) {
-  if (mode !== 'demo') return '';
-  return html`<div class="sim-banner" role="note"><span class="badge">${t('DEMO DATA')}</span>${t('Bus movement here is simulated by the server for demonstration. No real vehicles are being tracked. Collection-point lines are straight links, not road geometry.')}</div>`;
+// The demo-data banner was removed on request; callers still invoke it, so it stays as a no-op.
+const SVC = { delay: ['warn', 'clock'], route_change: ['warn', 'route'], cancellation: ['crit', 'alert'], breakdown: ['crit', 'wrench'], temporary: ['info', 'bell'] };
+/** A service update (delay, cancellation, ...) as a clear alert: severity colour, icon, what happened, who it affects, and how long ago. */
+export function serviceAlert(u) {
+  const [tone, ic] = SVC[u.kind] ?? ['info', 'bell'];
+  const posted = u.created_at ? Math.max(0, Math.round((Date.now() - new Date(u.created_at).getTime()) / 1000)) : null;
+  return html`<article class="svc-alert ${tone}" role="${tone === 'crit' ? 'alert' : 'status'}" data-key="svc-${u.id}">
+    <span class="svc-ico" aria-hidden="true">${icon(ic, 20)}</span>
+    <div class="svc-body">
+      <div class="svc-top"><span class="svc-kind">${updateKindLabel(u.kind)}</span>
+        ${u.route_code ? html`<span class="badge navy">${u.route_code} ${td(u.route_name ?? '')}</span>` : html`<span class="badge">${t('All routes')}</span>`}
+        ${u.bus_number ? html`<span class="badge">${t('Bus {n}', { n: u.bus_number })}</span>` : ''}
+        ${u.delay_minutes ? html`<span class="badge warn">+${t('{n} min', { n: u.delay_minutes })}</span>` : ''}
+        ${posted != null ? html`<span class="small muted svc-time">${ago(posted)}</span>` : ''}</div>
+      <b class="svc-title">${td(u.title)}</b>
+      <p class="svc-msg">${td(u.message)}</p>
+    </div>
+  </article>`;
+}
+
+export function simBanner() {
+  return '';
 }
 
 export { html, raw, esc, cls, icon };

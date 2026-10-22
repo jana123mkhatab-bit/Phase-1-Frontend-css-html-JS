@@ -150,7 +150,7 @@ export function seatInfo(d, bus, st) {
   const mine = S.reservations.filter((r) => r.trip_id === d.id && r.status === 'confirmed');
   const reserved = Math.min(capacity, base + mine.length);
   const outside = mine.filter((r) => r.outside_route).length;
-  return { capacity, reserved, available: Math.max(0, capacity - reserved), outside_reserved: outside };
+  return { capacity, reserved, available: Math.max(0, capacity - reserved), outside_reserved: outside, listed: Math.min(reserved, mine.length), unlisted: Math.max(0, reserved - mine.length) };
 }
 const levelOf = (pct) => (pct < 40 ? 'low' : pct > 75 ? 'high' : 'medium');
 function crowdFor(d, status) {
@@ -273,6 +273,16 @@ const demoTripsAround = (now, before, after) => {
   }
   return out;
 };
+/** Demo (loop) trips of every working bus that start between two moments, plus the one before (it may still be running). */
+export function cycleTripsBetween(from, to) {
+  const out = [];
+  for (const bus of S.buses) {
+    const ci = cycleInfo(bus);
+    if (!ci) continue;
+    for (let k = cycleK(ci, from) - 1; k <= cycleK(ci, to) + 1; k += 1) { const d = describe(cycleId(bus, ci, k)); if (d) out.push(d); }
+  }
+  return out;
+}
 const ORDER = { departed: 0, preparing: 1, scheduled: 2 };
 
 /** Trips a student cares about right now: moving, about to leave, or scheduled soon. */
