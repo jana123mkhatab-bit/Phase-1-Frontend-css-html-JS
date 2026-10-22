@@ -1,0 +1,10 @@
+{
+  "name": "campus-in-motion-phase1-frontend",
+  "version": "1.0.0",
+  "description": "Phase 1 front end for Campus in Motion, built with plain HTML, CSS and JavaScript only.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED"
+}
