@@ -39,7 +39,7 @@ export default function buses(view, ctx) {
       return html`${pageHead(t('Buses'), t('Bus number, capacity, assigned driver and route, and operating status.'), html`<button class="btn" data-click="add">${t('Add bus')}</button>`)}
       <div class="seg" role="group" aria-label="${t('Filter by status')}">
         <button aria-pressed="${bool(filter === 'all')}" data-click="filter" data-k="all">${t('All')}</button>
-        ${Object.entries(BUS_STATUS).map(([k, v]) => html`<button aria-pressed="${bool(filter === k)}" data-click="filter" data-k="${k}">${t(v)}</button>`)}
+        ${Object.entries(BUS_STATUS).filter(([k]) => k !== 'active').map(([k, v]) => html`<button aria-pressed="${bool(filter === k)}" data-click="filter" data-k="${k}">${t(v)}</button>`)}
       </div>
       ${asyncBlock(view.state.buses, 'buses', () => (rows.length ? html`<div class="table-wrap"><table class="t"><thead><tr><th>${t('Bus')}</th><th>${t('Plate')}</th><th>${t('Capacity')}</th><th>${t('Route')}</th><th>${t('Driver')}</th><th>${t('Status')}</th><th></th></tr></thead><tbody>
         ${rows.map((b) => html`<tr data-key="b-${b.id}"><td><span class="bus-chip">${b.number}</span></td><td class="mono">${b.plate ?? '—'}</td><td>${b.capacity}</td><td>${b.route_code ? `${b.route_code} · ${b.route_name}` : '—'}</td><td>${b.driver_name ?? html`<span class="muted">${t('Unassigned')}</span>`}</td>

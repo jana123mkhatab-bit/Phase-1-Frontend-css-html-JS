@@ -122,6 +122,18 @@ export function field({ label, hint, error, id }, inner) {
   </div>`;
 }
 
+/** Password input wrapped with show/hide toggle. */
+export function passwordInput({ id, value = '', bind, autocomplete = 'current-password', required = false, visible = false, toggleAction = 'toggle-pw', key = '' }) {
+  const isVis = !!visible;
+  const ariaLabel = isVis ? t('Hide password') : t('Show password');
+  return html`<div class="password-wrap" data-key="wrap-${id || key}">
+    <input id="${id}" type="${isVis ? 'text' : 'password'}" class="input" ${bind ? raw(`data-bind="${esc(bind)}"`) : ''} value="${value}" autocomplete="${autocomplete}" ${required ? 'required' : ''}>
+    <button type="button" class="pw-toggle" data-click="${toggleAction}" ${key ? raw(`data-pw-key="${esc(key)}"`) : ''} aria-label="${ariaLabel}" title="${ariaLabel}" tabindex="0">
+      ${icon(isVis ? 'eyeOff' : 'eye', 18)}
+    </button>
+  </div>`;
+}
+
 /** Data view with loading / error / empty handled consistently. `st` is view.state[key], `key` the loader key. */
 export function asyncBlock(st, key, children, { empty: isEmpty } = {}) {
   if (!st || (st.loading && !st.data)) return loading();

@@ -17,7 +17,18 @@ export default function drivers(view, ctx) {
       fields: [
         { key: 'name', label: t('Full name'), required: true, minLength: 2, max: 80 },
         { key: 'phone', label: t('Phone'), type: 'tel', max: 30, pattern: /^\+?[0-9][0-9 ()-]{5,}$/, patternMsg: t('Phone must be digits, optionally starting with + (at least 6 digits)'), hint: t('e.g. +20 100 123 4567') },
-        { key: 'license_no', label: t('License number'), max: 30 }, { key: 'active', label: t('Active driver'), type: 'checkbox' },
+        {
+          key: 'license_no', label: t('License number'), max: 30,
+          validate: (val) => {
+            const raw = typeof val === 'string' ? val.trim() : '';
+            if (!raw) return '';
+            const norm = raw.toLowerCase();
+            const list = view.state.drivers?.data?.drivers ?? [];
+            const clash = list.some((x) => x.id !== d.id && typeof x.license_no === 'string' && x.license_no.trim().toLowerCase() === norm);
+            return clash ? t('This license number is already assigned to another driver. Please enter a unique license number.') : '';
+          },
+        },
+        { key: 'active', label: t('Active driver'), type: 'checkbox' },
       ],
       onSubmit: async (v) => {
         if (d.id) await api.put(`/api/admin/drivers/${d.id}`, v); else await api.post('/api/admin/drivers', v);

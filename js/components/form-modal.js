@@ -1,8 +1,9 @@
 import { html, raw, attr, esc } from '../core/dom.js';
 import { openModal, field } from '../core/ui.js';
 import { t, tn } from '../core/i18n.js';
+import { icon } from '../core/icons.js';
 
-const isText = (f) => !f.type || ['text', 'textarea', 'email', 'tel'].includes(f.type);
+const isText = (f) => !f.type || ['text', 'textarea', 'email', 'tel', 'password'].includes(f.type);
 const isNum = (f) => f.type === 'number';
 
 /** Returns an error message for one field, or '' when it is valid. */
@@ -41,7 +42,7 @@ export function openForm({ title, fields, initial = {}, submitLabel, onSubmit, n
     title,
     setup: (view, modal) => {
       view.state.v = Object.fromEntries(fields.map((f) => [f.key, initial[f.key] ?? (f.type === 'checkbox' ? false : f.noBlank ? f.options[0]?.value ?? '' : '')]));
-      Object.assign(view.state, { touched: {}, attempted: false, err: '', busy: false });
+      Object.assign(view.state, { touched: {}, attempted: false, showPw: {}, err: '', busy: false });
       modal.canClose = () => !view.state.busy;
 
       const check = (vals) => {
@@ -54,7 +55,7 @@ export function openForm({ title, fields, initial = {}, submitLabel, onSubmit, n
 
       return {
         render: () => {
-          const { v, busy, err } = view.state;
+          const { v, busy, err, showPw } = view.state;
           const errs = check(v);
           const count = view.state.attempted ? Object.values(errs).filter(Boolean).length : 0;
           return html`<form data-submit="submit" class="stack" novalidate id="form-modal">
@@ -75,6 +76,16 @@ export function openForm({ title, fields, initial = {}, submitLabel, onSubmit, n
                     ${!f.noBlank ? html`<option value="" ${v[f.key] === '' || v[f.key] == null ? 'selected' : ''}>${f.blank ?? t('— none —')}</option>` : ''}
                     ${f.options.map((o) => html`<option value="${o.value}" ${String(v[f.key]) === String(o.value) ? 'selected' : ''}>${o.label}</option>`)}
                   </select>`;
+                } else if (f.type === 'password') {
+                  const isVis = !!showPw[f.key];
+                  const ariaLabel = isVis ? t('Hide password') : t('Show password');
+                  control = html`<div class="password-wrap" data-key="wrap-${id}">
+                    <input id="${id}" class="input" type="${isVis ? 'text' : 'password'}" value="${v[f.key]}" ${bindAttr}
+                      ${isText(f) && f.max ? attr`maxlength="${f.max * 2}"` : ''} ${f.placeholder ? attr`placeholder="${f.placeholder}"` : ''} ${aria}>
+                    <button type="button" class="pw-toggle" data-click="toggle-pw" data-pw-key="${f.key}" aria-label="${ariaLabel}" title="${ariaLabel}" tabindex="0">
+                      ${icon(isVis ? 'eyeOff' : 'eye', 18)}
+                    </button>
+                  </div>`;
                 } else {
                   control = html`<input id="${id}" class="input" type="${f.type || 'text'}" value="${v[f.key]}" ${bindAttr}
                     ${isNum(f) && f.min != null ? attr`min="${f.min}"` : ''} ${isNum(f) && f.max != null ? attr`max="${f.max}"` : ''}
@@ -96,6 +107,10 @@ export function openForm({ title, fields, initial = {}, submitLabel, onSubmit, n
         actions: {
           ...extraActions,
           cancel: () => modal.close(),
+          'toggle-pw': (el) => {
+            const k = el.dataset.pwKey;
+            if (k) view.set({ showPw: { ...view.state.showPw, [k]: !view.state.showPw[k] } });
+          },
           blur: (el) => { view.state.touched[el.dataset.k] = true; view.update(); },
           submit: async () => {
             const { v } = view.state;

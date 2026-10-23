@@ -1,5 +1,5 @@
 import { html } from '../core/dom.js';
-import { field } from '../core/ui.js';
+import { field, passwordInput } from '../core/ui.js';
 import { t } from '../core/i18n.js';
 import { icon } from '../core/icons.js';
 import { currentUser, login, register } from '../core/auth.js';
@@ -11,13 +11,13 @@ function loginPage(role) {
   return function page(view, ctx) {
     const home = `/${role}`;
     ctx.setTitle(role === 'admin' ? 'Admin sign in' : 'Student sign in');
-    Object.assign(view.state, { mode: 'login', f: { name: '', email: '', password: '', student_no: '' }, err: '', busy: false });
+    Object.assign(view.state, { mode: 'login', f: { name: '', email: '', password: '', student_no: '' }, showPw: false, err: '', busy: false });
     // already signed in: go straight to the area
     currentUser(role).then((u) => { if (u && !view.destroyed) ctx.navigate(ctx.state?.from || home, { replace: true }); });
 
     return {
       render: () => {
-        const { mode, f, err, busy } = view.state;
+        const { mode, f, showPw, err, busy } = view.state;
         return html`<div class="auth ${role}">
           <div class="card auth-card">
             <a href="#/" class="brand" style="color:var(--ink)"><span class="brand-mark">${icon('bus')}</span>${t('Campus in Motion')}</a>
@@ -35,7 +35,7 @@ function loginPage(role) {
               ${field({ label: t('Email'), id: 'email' }, html`<input id="email" type="email" class="input" data-bind="f.email" value="${f.email}" autocomplete="username" required>`)}
               ${mode === 'register' ? field({ label: t('Student number (optional)'), id: 'sno' }, html`<input id="sno" class="input" data-bind="f.student_no" value="${f.student_no}">`) : ''}
               ${field({ label: t('Password'), id: 'pw', hint: mode === 'register' ? t('At least 8 characters with letters and numbers.') : undefined },
-                html`<input id="pw" type="password" class="input" data-bind="f.password" value="${f.password}" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" required>`)}
+                passwordInput({ id: 'pw', bind: 'f.password', value: f.password, autocomplete: mode === 'login' ? 'current-password' : 'new-password', required: true, visible: showPw, toggleAction: 'toggle-pw' }))}
               ${err ? html`<div class="alert error" role="alert">${err}</div>` : ''}
               <button class="btn" ${busy ? 'disabled' : ''}>${busy ? t('Please wait…') : mode === 'login' ? t('Sign in') : t('Create account')}</button>
             </form>
@@ -48,6 +48,7 @@ function loginPage(role) {
       actions: {
         fill: () => view.set({ f: { ...view.state.f, ...DEMO[role] } }),
         switch: () => view.set({ mode: view.state.mode === 'login' ? 'register' : 'login', err: '' }),
+        'toggle-pw': () => view.set({ showPw: !view.state.showPw }),
         submit: async () => {
           const { mode, f } = view.state;
           view.set({ err: '', busy: true });

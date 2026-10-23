@@ -2,7 +2,7 @@ import { html } from '../../core/dom.js';
 import { api } from '../../core/api.js';
 import { getUser, setUser } from '../../core/auth.js';
 import { t, getLang } from '../../core/i18n.js';
-import { asyncBlock, pageHead, field, toast } from '../../core/ui.js';
+import { asyncBlock, pageHead, field, toast, passwordInput } from '../../core/ui.js';
 import { syncWidgets, widgetHost } from '../../core/widgets.js';
 import { WIDGETS } from '../../components/widgets.js';
 
@@ -17,13 +17,13 @@ export default function settings(view, ctx) {
     f: { name: user0.name, route_id: user0.route_id ?? '', stop_id: user0.stop_id ?? '', walk_minutes: user0.walk_minutes, notif_eta: user0.notif_eta, notif_departure: user0.notif_departure, notif_updates: user0.notif_updates, suggestions: user0.suggestions !== false },
     tab: 'travel', err: '', busy: false,
     em: { on: !!user0.email_reminders, lead: user0.email_lead_minutes ?? 45 }, emErr: '', emBusy: false,
-    pw: { current_password: '', new_password: '', confirm_password: '' }, pwErr: '', pwBusy: false,
+    pw: { current_password: '', new_password: '', confirm_password: '' }, showPw: { cur: false, new: false, conf: false }, pwErr: '', pwBusy: false,
   });
 
   return {
     render: () => {
       const user = getUser('student');
-      const { tab, f, err, busy, em, emErr, emBusy, pw, pwErr, pwBusy } = view.state;
+      const { tab, f, err, busy, em, emErr, emBusy, pw, showPw, pwErr, pwBusy } = view.state;
       return html`${pageHead(t('My settings'), t('Your route and collection point decide whose ETA you see and when alerts are sent.'))}
       ${asyncBlock(view.state.cat, 'cat', (d) => {
         const route = d.routes.find((r) => r.id === Number(f.route_id));
@@ -70,10 +70,10 @@ export default function settings(view, ctx) {
             </form>
             <form class="card stack" data-submit="change-pw" novalidate>
               <div><h2 class="set-h">${t('Security & password')}</h2><p class="small muted set-sub">${t('At least 8 characters with letters and numbers')}</p></div>
-              ${field({ label: t('Current password'), id: 'cur_pw' }, html`<input id="cur_pw" type="password" class="input" autocomplete="current-password" data-bind="pw.current_password" value="${pw.current_password}">`)}
+              ${field({ label: t('Current password'), id: 'cur_pw' }, passwordInput({ id: 'cur_pw', bind: 'pw.current_password', value: pw.current_password, autocomplete: 'current-password', visible: showPw.cur, toggleAction: 'toggle-pw', key: 'cur' }))}
               <div class="form-grid">
-                ${field({ label: t('New password'), id: 'new_pw' }, html`<input id="new_pw" type="password" class="input" autocomplete="new-password" data-bind="pw.new_password" value="${pw.new_password}">`)}
-                ${field({ label: t('Confirm new password'), id: 'conf_pw' }, html`<input id="conf_pw" type="password" class="input" autocomplete="new-password" data-bind="pw.confirm_password" value="${pw.confirm_password}">`)}
+                ${field({ label: t('New password'), id: 'new_pw' }, passwordInput({ id: 'new_pw', bind: 'pw.new_password', value: pw.new_password, autocomplete: 'new-password', visible: showPw.new, toggleAction: 'toggle-pw', key: 'new' }))}
+                ${field({ label: t('Confirm new password'), id: 'conf_pw' }, passwordInput({ id: 'conf_pw', bind: 'pw.confirm_password', value: pw.confirm_password, autocomplete: 'new-password', visible: showPw.conf, toggleAction: 'toggle-pw', key: 'conf' }))}
               </div>
               ${pwErr ? html`<div class="alert error" role="alert">${pwErr}</div>` : ''}
               <div class="row"><button class="btn secondary" ${pwBusy ? 'disabled' : ''}>${pwBusy ? t('Updating…') : t('Change password')}</button></div>
@@ -90,6 +90,12 @@ export default function settings(view, ctx) {
     after: () => syncWidgets(view, WIDGETS),
     actions: {
       tab: (el) => view.set({ tab: el.dataset.k, err: '', emErr: '', pwErr: '' }),
+      'toggle-pw': (el) => {
+        const k = el.dataset.pwKey;
+        if (k && view.state.showPw) {
+          view.set({ showPw: { ...view.state.showPw, [k]: !view.state.showPw[k] } });
+        }
+      },
       'route-change': () => { view.state.f.stop_id = ''; view.update(); },
       lead: (el) => { view.state.em.lead = Number(el.dataset.m); view.update(); },
       save: async () => {

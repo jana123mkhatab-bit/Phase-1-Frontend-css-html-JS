@@ -198,10 +198,23 @@ function stopBody(b, cur = {}) {
   if (!validCoord(lat, lng)) throw bad('Invalid coordinates');
   return { name: str(b.name ?? cur.name, 'Name', { max: 80 }), lat, lng, area: b.area === undefined ? cur.area ?? null : str(b.area, 'Area', { max: 60, optional: true }), active: b.active === undefined ? cur.active ?? 1 : bool(b.active) };
 }
+function normalizeLicense(lic) {
+  return typeof lic === 'string' ? lic.trim().toLowerCase() : '';
+}
+function checkUniqueLicense(lic, excludeId = 0) {
+  const norm = normalizeLicense(lic);
+  if (!norm) return;
+  const match = S.drivers.find((d) => d.id !== excludeId && normalizeLicense(d.license_no) === norm);
+  if (match) {
+    throw conflict('This license number is already assigned to another driver. Please enter a unique license number.');
+  }
+}
 function driverBody(b, cur = {}) {
+  const license_no = b.license_no === undefined ? cur.license_no ?? null : str(b.license_no, 'License number', { max: 30, optional: true });
+  checkUniqueLicense(license_no, cur.id || 0);
   return {
     name: str(b.name ?? cur.name, 'Name', { max: 80 }), phone: b.phone === undefined ? cur.phone ?? null : str(b.phone, 'Phone', { max: 30, optional: true }),
-    license_no: b.license_no === undefined ? cur.license_no ?? null : str(b.license_no, 'License number', { max: 30, optional: true }), active: b.active === undefined ? cur.active ?? 1 : bool(b.active),
+    license_no, active: b.active === undefined ? cur.active ?? 1 : bool(b.active),
   };
 }
 function schedBody(b, cur = {}) {

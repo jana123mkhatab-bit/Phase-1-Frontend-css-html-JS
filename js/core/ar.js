@@ -73,6 +73,9 @@ const AR = {
   'Phone': 'الهاتف',
   'Email': 'الإيميل',
   'Password': 'كلمة السر',
+  'Show password': 'إظهار كلمة المرور',
+  'Hide password': 'إخفاء كلمة المرور',
+  'This license number is already assigned to another driver. Please enter a unique license number.': 'رقم الرخصة هذا مخصص بالفعل لسائق آخر. يُرجى إدخال رقم رخصة فريد.',
   'Full name': 'الاسم الكامل',
   'Note (optional)': 'ملاحظة (اختياري)',
 
